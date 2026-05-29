@@ -249,11 +249,55 @@ document.getElementById('form-order').addEventListener('submit', async e => {
 
 // ── demo panel ────────────────────────────────────────────────────────────────
 
+// DynamoDB on-demand pricing: $0.25 per million RCUs (eventually consistent = 0.5 RCU/item)
+const RCU_PRICE_PER_MILLION = 0.25;
+const EVENTUALLY_CONSISTENT_RCU = 0.5;
+const SCALE_REQUESTS_PER_DAY = 100_000;
+const DAYS_PER_MONTH = 30;
+
+function calcCost(items) {
+  return items * EVENTUALLY_CONSISTENT_RCU * (RCU_PRICE_PER_MILLION / 1_000_000);
+}
+
+function fmtUSD(n) {
+  if (n < 0.01) return `$${n.toFixed(5)}`;
+  return `$${n.toFixed(2)}`;
+}
+
 function renderResult(containerId, data) {
   const box = document.getElementById(containerId);
   const scanned = data.scanned_count;
   const returned = data.returned_count;
   const warnClass = scanned > returned ? 'warn' : '';
+
+  const rcuScanned = scanned * EVENTUALLY_CONSISTENT_RCU;
+  const rcuIdeal   = returned * EVENTUALLY_CONSISTENT_RCU;
+  const wastePercent = scanned > 0 ? Math.round((scanned - returned) / scanned * 100) : 0;
+
+  const costPerOp       = calcCost(scanned);
+  const costPerOpIdeal  = calcCost(returned);
+  const monthlyActual   = costPerOp      * SCALE_REQUESTS_PER_DAY * DAYS_PER_MONTH;
+  const monthlyIdeal    = costPerOpIdeal * SCALE_REQUESTS_PER_DAY * DAYS_PER_MONTH;
+  const monthlySavings  = monthlyActual  - monthlyIdeal;
+
+  const costBlock = scanned > returned ? `
+    <div class="cost-box">
+      <div class="cost-row">
+        <span class="cost-label">RCUs consumed (this op)</span>
+        <span class="cost-bad">${rcuScanned.toFixed(1)} RCU</span>
+        <span class="cost-label">vs ideal (Query/GSI)</span>
+        <span class="cost-good">${rcuIdeal.toFixed(1)} RCU</span>
+        <span class="cost-waste">${wastePercent}% wasted</span>
+      </div>
+      <div class="cost-row">
+        <span class="cost-label">At ${SCALE_REQUESTS_PER_DAY.toLocaleString()} req/day × 30 days</span>
+        <span class="cost-bad">${fmtUSD(monthlyActual)}/mo (scan)</span>
+        <span class="cost-arrow">→</span>
+        <span class="cost-good">${fmtUSD(monthlyIdeal)}/mo (with GSI)</span>
+        <span class="cost-save">save ${fmtUSD(monthlySavings)}/mo</span>
+      </div>
+    </div>` : '';
+
   box.innerHTML = `
     <div class="result-meta">
       <span><span class="meta-label">operation: </span><span class="meta-value">${data.operation}</span></span>
@@ -261,6 +305,7 @@ function renderResult(containerId, data) {
       <span><span class="meta-label">returned: </span><span class="meta-value">${returned}</span></span>
     </div>
     <div class="meta-label" style="margin-bottom:8px;font-size:11px;">${data.explanation}</div>
+    ${costBlock}
     ${JSON.stringify(data.items, null, 2)}`;
   box.classList.remove('hidden');
 }

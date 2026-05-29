@@ -303,3 +303,29 @@ tr:hover td { background: var(--surface2); }
 
 .info-table { font-size: 13px; }
 .info-table th, .info-table td { padding: 8px 12px; }
+
+/* COST BOX */
+.cost-box {
+  background: rgba(245,166,35,0.07);
+  border: 1px solid rgba(245,166,35,0.3);
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.cost-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  font-family: 'Fira Code', monospace;
+}
+.cost-label  { color: var(--text-muted); }
+.cost-bad    { color: var(--warning); font-weight: 700; }
+.cost-good   { color: var(--success); font-weight: 700; }
+.cost-waste  { color: var(--danger); font-weight: 700; margin-left: auto; }
+.cost-arrow  { color: var(--text-muted); }
+.cost-save   { color: var(--success); font-weight: 700; margin-left: auto; }
