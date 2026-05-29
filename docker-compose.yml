@@ -1,0 +1,48 @@
+services:
+  dynamodb:
+    image: amazon/dynamodb-local:latest
+    container_name: dynamodb-local
+    command: ["-jar", "DynamoDBLocal.jar", "-sharedDb", "-dbPath", "/data"]
+    volumes:
+      - dynamodb-data:/data
+    networks:
+      - internal
+
+  backend:
+    build: ./backend
+    container_name: dynamo-backend
+    environment:
+      AWS_ACCESS_KEY_ID: local
+      AWS_SECRET_ACCESS_KEY: local
+      AWS_DEFAULT_REGION: us-east-1
+      DYNAMODB_ENDPOINT: http://dynamodb:8000
+    depends_on:
+      - dynamodb
+    networks:
+      - internal
+
+  frontend:
+    build: ./frontend
+    container_name: dynamo-frontend
+    networks:
+      - internal
+
+  gateway:
+    image: caddy:alpine
+    container_name: dynamo-gateway
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./gateway/Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - internal
+
+volumes:
+  dynamodb-data:
+
+networks:
+  internal:
+    driver: bridge

@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DynamoDB Demo</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <header>
+    <div class="header-left">
+      <h1>DynamoDB Demo</h1>
+      <span id="status-badge" class="badge badge-checking">checking…</span>
+    </div>
+    <div class="header-right">
+      <button id="btn-seed" class="btn btn-primary">Seed Data</button>
+      <button id="btn-wipe" class="btn btn-danger">Wipe Data</button>
+    </div>
+  </header>
+
+  <nav class="tab-nav">
+    <button class="tab-btn active" data-tab="products">Products</button>
+    <button class="tab-btn" data-tab="orders">Orders</button>
+    <button class="tab-btn" data-tab="demo">Demo: Query / Scan</button>
+    <button class="tab-btn" data-tab="workbench">NoSQL Workbench</button>
+  </nav>
+
+  <!-- PRODUCTS TAB -->
+  <section id="tab-products" class="tab-content active">
+    <div class="panel">
+      <div class="panel-header">
+        <h2>Products</h2>
+        <button class="btn btn-sm btn-primary" id="btn-show-add-product">+ Add Product</button>
+      </div>
+
+      <form id="form-product" class="form-card hidden">
+        <h3 id="form-product-title">Add Product</h3>
+        <input type="hidden" id="product-edit-id" />
+        <div class="form-row">
+          <label>Product ID <input id="p-productId" placeholder="P999" /></label>
+          <label>Name <input id="p-name" placeholder="Product Name" /></label>
+        </div>
+        <div class="form-row">
+          <label>Category
+            <select id="p-category">
+              <option>Electronics</option>
+              <option>Clothing</option>
+              <option>Books</option>
+              <option>Home</option>
+            </select>
+          </label>
+          <label>Price ($) <input id="p-price" type="number" step="0.01" placeholder="0.00" /></label>
+          <label>Stock <input id="p-stock" type="number" placeholder="0" /></label>
+        </div>
+        <label>Description <input id="p-description" placeholder="Short description" /></label>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">Save</button>
+          <button type="button" class="btn btn-ghost" id="btn-cancel-product">Cancel</button>
+        </div>
+      </form>
+
+      <div id="toast-product" class="toast hidden"></div>
+
+      <table id="table-products">
+        <thead>
+          <tr>
+            <th>ID</th><th>Name</th><th>Category</th><th>Price</th><th>Stock</th><th>Description</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-products">
+          <tr><td colspan="7" class="empty">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ORDERS TAB -->
+  <section id="tab-orders" class="tab-content">
+    <div class="panel">
+      <div class="panel-header">
+        <h2>Orders</h2>
+        <button class="btn btn-sm btn-primary" id="btn-show-add-order">+ Add Order</button>
+      </div>
+
+      <form id="form-order" class="form-card hidden">
+        <h3>Add Order</h3>
+        <div class="form-row">
+          <label>Order ID <input id="o-orderId" placeholder="O099" /></label>
+          <label>Customer ID <input id="o-customerId" placeholder="C001" /></label>
+        </div>
+        <div class="form-row">
+          <label>Product ID <input id="o-productId" placeholder="P001" /></label>
+          <label>Quantity <input id="o-quantity" type="number" min="1" placeholder="1" /></label>
+          <label>Total Price ($) <input id="o-totalPrice" type="number" step="0.01" placeholder="0.00" /></label>
+        </div>
+        <div class="form-row">
+          <label>Status
+            <select id="o-status">
+              <option>pending</option>
+              <option>shipped</option>
+              <option>delivered</option>
+            </select>
+          </label>
+          <label>Created At <input id="o-createdAt" placeholder="2024-01-01T00:00:00Z" /></label>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">Save</button>
+          <button type="button" class="btn btn-ghost" id="btn-cancel-order">Cancel</button>
+        </div>
+      </form>
+
+      <div id="toast-order" class="toast hidden"></div>
+
+      <table id="table-orders">
+        <thead>
+          <tr>
+            <th>Order ID</th><th>Customer</th><th>Product</th><th>Qty</th><th>Status</th><th>Total</th><th>Created</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-orders">
+          <tr><td colspan="8" class="empty">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- DEMO TAB -->
+  <section id="tab-demo" class="tab-content">
+    <div class="panel">
+      <h2>Query vs Scan Demo</h2>
+      <p class="hint">These operations hit the real DynamoDB Local API and return metadata showing how many items were <strong>scanned</strong> vs <strong>returned</strong>.</p>
+
+      <div class="demo-grid">
+        <!-- SCAN -->
+        <div class="demo-card">
+          <h3>Scan</h3>
+          <p>Reads <em>every</em> item in the Products table. Cost = table size.</p>
+          <button class="btn btn-primary" id="btn-scan">Run Scan</button>
+          <div id="result-scan" class="result-box hidden"></div>
+        </div>
+
+        <!-- FILTER -->
+        <div class="demo-card">
+          <h3>Scan + FilterExpression</h3>
+          <p>Scans everything, then filters. <code>scanned_count</code> &gt; <code>returned_count</code>.</p>
+          <div class="form-row">
+            <label>Category
+              <select id="filter-category">
+                <option value="">— any —</option>
+                <option>Electronics</option>
+                <option>Clothing</option>
+                <option>Books</option>
+                <option>Home</option>
+              </select>
+            </label>
+            <label>Max Price ($) <input id="filter-maxPrice" type="number" step="0.01" placeholder="any" /></label>
+          </div>
+          <button class="btn btn-primary" id="btn-filter">Run Filter</button>
+          <div id="result-filter" class="result-box hidden"></div>
+        </div>
+
+        <!-- QUERY -->
+        <div class="demo-card">
+          <h3>Scan + Filter by Customer</h3>
+          <p>
+            Orders table: <code>PK=orderId</code>, <code>SK=customerId</code>.<br>
+            Querying by SK alone needs a GSI. This demo uses Scan + FilterExpression to show the cost difference.
+          </p>
+          <label>Customer ID
+            <select id="query-customerId">
+              <option value="C001">C001</option>
+              <option value="C002">C002</option>
+              <option value="C003">C003</option>
+            </select>
+          </label>
+          <button class="btn btn-primary" id="btn-query">Run Query</button>
+          <div id="result-query" class="result-box hidden"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- WORKBENCH TAB -->
+  <section id="tab-workbench" class="tab-content">
+    <div class="panel">
+      <h2>NoSQL Workbench Connection</h2>
+      <p>Connect NoSQL Workbench to the running DynamoDB Local instance:</p>
+      <ol class="workbench-steps">
+        <li>Open <strong>NoSQL Workbench</strong> → <em>Amazon DynamoDB</em> → <em>Add connection</em></li>
+        <li>Select <strong>DynamoDB local</strong></li>
+        <li>Set <strong>Port</strong> to <code>8000</code></li>
+        <li>Click <strong>Connect</strong></li>
+      </ol>
+      <div class="config-card">
+        <h3>AWS CLI / SDK Config</h3>
+        <pre><code># Environment variables (already set in Docker)
+AWS_ACCESS_KEY_ID=local
+AWS_SECRET_ACCESS_KEY=local
+AWS_DEFAULT_REGION=us-east-1
+DYNAMODB_ENDPOINT=http://localhost:8000
+
+# AWS CLI — example
+aws dynamodb list-tables \
+  --endpoint-url http://localhost:8000 \
+  --region us-east-1</code></pre>
+      </div>
+      <div class="config-card">
+        <h3>Tables</h3>
+        <table class="info-table">
+          <thead><tr><th>Table</th><th>PK</th><th>SK</th><th>GSI</th></tr></thead>
+          <tbody>
+            <tr><td>Products</td><td>productId (S)</td><td>—</td><td>CategoryIndex on category</td></tr>
+            <tr><td>Orders</td><td>orderId (S)</td><td>customerId (S)</td><td>—</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <script src="/js/app.js"></script>
+</body>
+</html>
